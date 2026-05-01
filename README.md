@@ -346,3 +346,8 @@ Systems like this are used by:
 - [SHAP](https://shap.readthedocs.io/)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [scikit-learn](https://scikit-learn.org/)
+
+  👤 Author
+NEHA JOSHI
+[GitHub] https://github.com/Neha-Joshi05/student-performance-prediction.git 
+[LinkedIn] https://www.linkedin.com/in/neha-joshi-0851a2322utm_source=share_via&utm_content=profile&utm_medium=member_android
