@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EduGuard — Student Risk Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:         #060a0f;
+    --surface:    #0d1520;
+    --border:     #1a2535;
+    --text:       #e6edf3;
+    --muted:      #7d8fa8;
+    --green:      #23d18b;
+    --green-dim:  rgba(35,209,139,0.10);
+    --red:        #ff4757;
+    --red-dim:    rgba(255,71,87,0.12);
+    --amber:      #f0a500;
+    --amber-dim:  rgba(240,165,0,0.12);
+    --blue:       #58a6ff;
+    --blue-dim:   rgba(88,166,255,0.10);
+    --purple:     #bc8cff;
+    --purple-dim: rgba(188,140,255,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(88,166,255,0.012) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(88,166,255,0.012) 1px, transparent 1px);
+    background-size: 44px 44px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .ambient { position: fixed; border-radius: 50%; filter: blur(130px); pointer-events: none; z-index: 0; }
+  .amb1 { width:500px; height:500px; top:-80px; left:-80px; background:rgba(88,166,255,0.04); }
+  .amb2 { width:400px; height:400px; bottom:0; right:-60px; background:rgba(35,209,139,0.03); }
+
+  .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,21,32,0.9);
+    backdrop-filter: blur(16px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; font-size: 1.15rem; font-weight: 800; letter-spacing: -0.5px; }
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: linear-gradient(135deg, var(--blue), var(--purple));
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 16px; box-shadow: 0 0 20px rgba(88,166,255,0.3);
+  }
+  .logo span { color: var(--blue); }
+
+  .header-right { display: flex; align-items: center; gap: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── LAYOUT ── */
+  main { display: grid; grid-template-columns: 1fr 400px; flex: 1; }
+
+  /* ── LEFT ── */
+  .left { padding: 26px 30px; border-right: 1px solid var(--border); overflow-y: auto; }
+
+  /* ── STATS ── */
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 26px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; position: relative; overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .stat:hover { border-color: var(--blue); transform: translateY(-2px); }
+  .stat::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .stat.red::before    { background: linear-gradient(90deg,var(--red),transparent); }
+  .stat.green::before  { background: linear-gradient(90deg,var(--green),transparent); }
+  .stat.amber::before  { background: linear-gradient(90deg,var(--amber),transparent); }
+  .stat.blue::before   { background: linear-gradient(90deg,var(--blue),transparent); }
+  .stat-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 7px; }
+  .stat-val   { font-size: 1.85rem; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+  .stat-val.red   { color: var(--red); }
+  .stat-val.green { color: var(--green); }
+  .stat-val.amber { color: var(--amber); }
+  .stat-val.blue  { color: var(--blue); }
+  .stat-sub { font-size: 0.68rem; color: var(--muted); margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── SECTION ── */
+  .sec-title {
+    font-size: 0.68rem; text-transform: uppercase; letter-spacing: 2px; color: var(--muted);
+    margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+  /* ── CHART ── */
+  .chart-wrap { margin-bottom: 26px; }
+  .mini-bars  { display:flex; align-items:flex-end; gap:4px; height:72px; }
+  .mini-bar   { flex:1; border-radius:3px 3px 0 0; min-height:4px; transition: height 0.4s ease; }
+  .bar-labs   { display:flex; gap:4px; margin-top:4px; }
+  .bar-lab    { flex:1; text-align:center; font-size:0.52rem; color:var(--muted); font-family:'JetBrains Mono',monospace; overflow:hidden; }
+
+  /* ── FEED ── */
+  .feed { display:flex; flex-direction:column; gap:8px; max-height:420px; overflow-y:auto; padding-right:4px; }
+  .feed::-webkit-scrollbar { width:4px; }
+  .feed::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .student-row {
+    display: grid; grid-template-columns: 36px 1fr auto auto;
+    align-items: center; gap: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 14px;
+    transition: border-color 0.2s; animation: slideIn 0.3s ease;
+  }
+  .student-row:hover { border-color: #2a3a55; }
+  .student-row.risk  { border-left: 3px solid var(--red);   background: rgba(255,71,87,0.04); }
+  .student-row.safe  { border-left: 3px solid var(--green); }
+
+  @keyframes slideIn { from{opacity:0;transform:translateX(-8px)} to{opacity:1;transform:translateX(0)} }
+
+  .stu-icon {
+    width:36px; height:36px; border-radius:9px;
+    display:flex; align-items:center; justify-content:center; font-size:15px;
+  }
+  .stu-icon.risk { background:var(--red-dim); }
+  .stu-icon.safe { background:var(--green-dim); }
+
+  .stu-meta {}
+  .stu-id   { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted); }
+  .stu-desc { font-size:0.83rem; font-weight:600; }
+
+  .stu-prob { font-family:'JetBrains Mono',monospace; font-size:0.88rem; font-weight:600; text-align:right; }
+  .stu-prob.risk { color:var(--red); }
+  .stu-prob.safe { color:var(--green); }
+
+  .badge {
+    font-size:0.58rem; font-weight:700; letter-spacing:1px; text-transform:uppercase;
+    padding:3px 7px; border-radius:4px; font-family:'JetBrains Mono',monospace;
+  }
+  .badge.CRITICAL { background:var(--red-dim);    color:var(--red);    border:1px solid rgba(255,71,87,0.3); }
+  .badge.HIGH     { background:var(--amber-dim);  color:var(--amber);  border:1px solid rgba(240,165,0,0.3); }
+  .badge.MEDIUM   { background:var(--blue-dim);   color:var(--blue);   border:1px solid rgba(88,166,255,0.3); }
+  .badge.LOW      { background:var(--green-dim);  color:var(--green);  border:1px solid rgba(35,209,139,0.3); }
+
+  /* ── RIGHT ── */
+  .right { background:var(--surface); display:flex; flex-direction:column; overflow-y:auto; }
+  .panel-hdr { padding:18px 22px 12px; border-bottom:1px solid var(--border); font-size:0.68rem; text-transform:uppercase; letter-spacing:2px; color:var(--muted); }
+
+  .scorer { padding:18px 22px; flex:1; }
+
+  .api-banner {
+    margin:0 22px 14px; padding:9px 12px; border-radius:8px;
+    font-size:0.7rem; font-family:'JetBrains Mono',monospace;
+    border:1px solid var(--border); background:var(--bg);
+    display:flex; align-items:center; gap:7px;
+  }
+  .api-banner.online  { border-color:rgba(35,209,139,0.3); color:var(--green); }
+  .api-banner.offline { border-color:rgba(255,71,87,0.3);  color:var(--red); }
+  .api-banner.checking { color:var(--muted); }
+
+  .presets { display:flex; gap:8px; margin-bottom:14px; }
+  .preset-btn {
+    flex:1; padding:7px; font-family:'Syne',sans-serif; font-size:0.68rem; font-weight:700;
+    border-radius:7px; cursor:pointer; border:1px solid var(--border); transition:all 0.15s;
+  }
+  .preset-btn.at-risk { background:var(--red-dim);   color:var(--red);   border-color:rgba(255,71,87,0.3); }
+  .preset-btn.on-track { background:var(--green-dim); color:var(--green); border-color:rgba(35,209,139,0.3); }
+  .preset-btn:hover { opacity:0.8; transform:translateY(-1px); }
+
+  .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .fg { display:flex; flex-direction:column; gap:4px; }
+  .fg.full { grid-column:1/-1; }
+
+  label { font-size:0.62rem; text-transform:uppercase; letter-spacing:1.2px; color:var(--muted); }
+
+  input, select {
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:7px; padding:8px 10px; color:var(--text);
+    font-family:'JetBrains Mono',monospace; font-size:0.78rem;
+    outline:none; transition:border-color 0.2s, box-shadow 0.2s; width:100%;
+  }
+  input:focus, select:focus { border-color:var(--blue); box-shadow:0 0 0 3px rgba(88,166,255,0.1); }
+  select option { background:var(--surface); }
+
+  .predict-btn {
+    width:100%; padding:12px;
+    background:linear-gradient(135deg, var(--blue), var(--purple));
+    border:none; border-radius:9px; color:white;
+    font-family:'Syne',sans-serif; font-size:0.88rem; font-weight:700;
+    cursor:pointer; transition:opacity 0.2s, transform 0.15s;
+    box-shadow:0 4px 16px rgba(88,166,255,0.25); margin-bottom:14px;
+  }
+  .predict-btn:hover  { opacity:0.9; transform:translateY(-1px); }
+  .predict-btn:active { transform:translateY(0); }
+  .predict-btn:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+
+  /* Result */
+  .result-card {
+    border-radius:12px; padding:16px; border:1px solid var(--border);
+    display:none; animation:fadeUp 0.35s ease;
+  }
+  .result-card.show { display:block; }
+  .result-card.risk-result  { border-color:var(--red);   background:rgba(255,71,87,0.05);  box-shadow:0 0 24px rgba(255,71,87,0.2); }
+  .result-card.safe-result  { border-color:var(--green); background:rgba(35,209,139,0.04); box-shadow:0 0 24px rgba(35,209,139,0.15); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+  .verdict { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .verdict-icon  { font-size:1.5rem; }
+  .verdict-label { font-size:1.05rem; font-weight:800; }
+  .verdict-label.risk { color:var(--red); }
+  .verdict-label.safe { color:var(--green); }
+  .verdict-sub { font-size:0.68rem; color:var(--muted); font-family:'JetBrains Mono',monospace; }
+
+  .prob-meter { margin-bottom:12px; }
+  .prob-label { display:flex; justify-content:space-between; font-size:0.65rem; color:var(--muted); margin-bottom:5px; font-family:'JetBrains Mono',monospace; }
+  .prob-label span { font-size:0.95rem; font-weight:700; color:var(--text); }
+  .meter-track { height:7px; border-radius:4px; background:var(--border); overflow:hidden; }
+  .meter-fill  { height:100%; border-radius:4px; transition:width 0.8s cubic-bezier(0.34,1.56,0.64,1); }
+  .meter-fill.risk { background:linear-gradient(90deg,var(--red),var(--amber)); }
+  .meter-fill.safe { background:linear-gradient(90deg,var(--amber),var(--green)); }
+
+  .interventions { margin-top:12px; }
+  .int-title { font-size:0.62rem; text-transform:uppercase; letter-spacing:1.5px; color:var(--muted); margin-bottom:7px; }
+  .int-item  { font-size:0.74rem; line-height:1.45; margin-bottom:5px; padding:6px 9px; border-radius:6px; background:var(--bg); border:1px solid var(--border); }
+
+  .result-meta { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; padding-top:12px; border-top:1px solid var(--border); }
+  .meta-pill   { font-family:'JetBrains Mono',monospace; font-size:0.62rem; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--border); color:var(--muted); }
+
+  .spinner { display:none; width:16px; height:16px; border:2px solid rgba(255,255,255,0.2); border-top-color:white; border-radius:50%; animation:spin 0.7s linear infinite; margin:0 auto; }
+  .spinner.show { display:inline-block; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  @media (max-width:900px) {
+    main { grid-template-columns:1fr; }
+    .stats { grid-template-columns:repeat(2,1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="ambient amb1"></div>
+<div class="ambient amb2"></div>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🎓</div>
+      Edu<span>Guard</span>
+    </div>
+    <div class="header-right">
+      <div class="dot" id="dot"></div>
+      <span id="hStatus">connecting…</span>
+      <span>|</span>
+      <span id="hTime">--:--:--</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- LEFT -->
+    <div class="left">
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat red">
+          <div class="stat-label">At-Risk</div>
+          <div class="stat-val red" id="sAtRisk">0</div>
+          <div class="stat-sub">this session</div>
+        </div>
+        <div class="stat green">
+          <div class="stat-label">On Track</div>
+          <div class="stat-val green" id="sOnTrack">0</div>
+          <div class="stat-sub">this session</div>
+        </div>
+        <div class="stat amber">
+          <div class="stat-label">Avg Pass Prob</div>
+          <div class="stat-val amber" id="sAvgProb">—</div>
+          <div class="stat-sub">mean probability</div>
+        </div>
+        <div class="stat blue">
+          <div class="stat-label">Model F1</div>
+          <div class="stat-val blue" id="sF1">—</div>
+          <div class="stat-sub" id="sRoc">ROC-AUC —</div>
+        </div>
+      </div>
+
+      <!-- Mini chart -->
+      <div class="chart-wrap">
+        <div class="sec-title">Pass Probability History</div>
+        <div class="mini-bars" id="chart"></div>
+        <div class="bar-labs"  id="chartLabs"></div>
+      </div>
+
+      <!-- Feed -->
+      <div class="sec-title">Student Feed</div>
+      <div class="feed" id="feed">
+        <div style="text-align:center;padding:40px 0;color:var(--muted);font-size:0.8rem;">
+          Predict a student to see them here
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="right">
+      <div class="panel-hdr">Student Predictor</div>
+
+      <div style="padding:14px 22px 0;">
+        <div class="api-banner checking" id="apiBanner">⟳ &nbsp;Checking API…</div>
+      </div>
+
+      <div class="scorer">
+        <div class="presets">
+          <button class="preset-btn at-risk"  onclick="loadPreset('risk')">⚠ At-Risk Sample</button>
+          <button class="preset-btn on-track" onclick="loadPreset('safe')">✓ On-Track Sample</button>
+        </div>
+
+        <div class="form-grid">
+          <div class="fg">
+            <label>Gender</label>
+            <select id="gender"><option>M</option><option>F</option><option>Other</option></select>
+          </div>
+          <div class="fg">
+            <label>School Type</label>
+            <select id="school_type"><option>Govt</option><option>Private</option><option>International</option></select>
+          </div>
+          <div class="fg full">
+            <label>Parent Education</label>
+            <select id="parent_edu">
+              <option>Below_HSC</option><option>HSC</option>
+              <option>UG</option><option>PG</option><option>PhD</option>
+            </select>
+          </div>
+          <div class="fg"><label>Prior GPA (0–10)</label><input type="number" id="prior_gpa" value="5.2" step="0.1" min="0" max="10" /></div>
+          <div class="fg"><label>Attendance %</label><input type="number" id="attendance_pct" value="55" min="0" max="100" /></div>
+          <div class="fg"><label>Quiz Avg</label><input type="number" id="quiz_avg" value="38" min="0" max="100" /></div>
+          <div class="fg"><label>Assignment Avg</label><input type="number" id="assign_avg" value="42" min="0" max="100" /></div>
+          <div class="fg"><label>Midterm Score</label><input type="number" id="midterm" value="36" min="0" max="100" /></div>
+          <div class="fg"><label>Study Hrs/Week</label><input type="number" id="study_hours_wk" value="2" step="0.5" min="0" max="20" /></div>
+          <div class="fg"><label>On-Time Submit %</label><input type="number" id="on_time_submit_pct" value="50" min="0" max="100" /></div>
+          <div class="fg"><label>LMS Logins/Week</label><input type="number" id="lms_logins_wk" value="1" min="0" /></div>
+          <div class="fg"><label>Forum Posts</label><input type="number" id="forum_posts" value="0" min="0" /></div>
+          <div class="fg"><label>Commute (min)</label><input type="number" id="commute_min" value="90" min="0" /></div>
+        </div>
+
+        <button class="predict-btn" id="predBtn" onclick="predict()">
+          <span id="btnTxt">Predict Student Risk</span>
+          <span class="spinner" id="spinner"></span>
+        </button>
+
+        <div class="result-card" id="resultCard">
+          <div class="verdict">
+            <span class="verdict-icon" id="vIcon"></span>
+            <div>
+              <div class="verdict-label" id="vLabel"></div>
+              <div class="verdict-sub"  id="vSub"></div>
+            </div>
+          </div>
+          <div class="prob-meter">
+            <div class="prob-label">Pass Probability <span id="probVal">0.00</span></div>
+            <div class="meter-track"><div class="meter-fill" id="meterFill" style="width:0%"></div></div>
+          </div>
+          <div class="interventions">
+            <div class="int-title">Recommended Interventions</div>
+            <div id="intList"></div>
+          </div>
+          <div class="result-meta" id="resMeta"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let sessionRisk = 0, sessionSafe = 0;
+let probs = [];
+let apiOnline = false;
+
+// Clock
+function tick() {
+  document.getElementById('hTime').textContent =
+    new Date().toLocaleTimeString('en-IN', {hour12:false});
+}
+tick(); setInterval(tick, 1000);
+
+// API check
+async function checkApi() {
+  const banner = document.getElementById('apiBanner');
+  const dot    = document.getElementById('dot');
+  const status = document.getElementById('hStatus');
+  try {
+    const r = await fetch(`${API}/`, {signal: AbortSignal.timeout(3000)});
+    if (r.ok) {
+      apiOnline = true;
+      banner.className = 'api-banner online';
+      banner.innerHTML = '● &nbsp;API online — localhost:8000';
+      dot.style.cssText = 'background:var(--green);box-shadow:0 0 8px var(--green)';
+      status.textContent = 'API online';
+      loadMetrics();
+    } else throw new Error();
+  } catch {
+    apiOnline = false;
+    banner.className = 'api-banner offline';
+    banner.innerHTML = '✕ &nbsp;API offline — run: uvicorn serving.api:app --port 8000';
+    dot.style.cssText = 'background:var(--red);box-shadow:0 0 8px var(--red)';
+    status.textContent = 'API offline';
+  }
+}
+
+async function loadMetrics() {
+  try {
+    const r = await fetch(`${API}/metrics`);
+    const d = await r.json();
+    document.getElementById('sF1').textContent  = d.metrics.f1_score.toFixed(3);
+    document.getElementById('sRoc').textContent = `ROC-AUC ${d.metrics.roc_auc.toFixed(3)}`;
+  } catch {}
+}
+
+// Presets
+const PRESETS = {
+  risk: { gender:'M', school_type:'Govt', parent_edu:'Below_HSC',
+    prior_gpa:5.2, attendance_pct:55, quiz_avg:38, assign_avg:42, midterm:36,
+    study_hours_wk:2, on_time_submit_pct:50, lms_logins_wk:1, forum_posts:0, commute_min:90 },
+  safe: { gender:'F', school_type:'Private', parent_edu:'PG',
+    prior_gpa:8.5, attendance_pct:92, quiz_avg:78, assign_avg:82, midterm:79,
+    study_hours_wk:9, on_time_submit_pct:95, lms_logins_wk:8, forum_posts:5, commute_min:20 },
+};
+
+function loadPreset(type) {
+  const p = PRESETS[type];
+  Object.entries(p).forEach(([k,v]) => {
+    const el = document.getElementById(k);
+    if (el) el.value = v;
+  });
+}
+
+// Predict
+async function predict() {
+  if (!apiOnline) { alert('API is offline.\nRun: uvicorn serving.api:app --reload --port 8000'); return; }
+
+  const btn  = document.getElementById('predBtn');
+  const txt  = document.getElementById('btnTxt');
+  const spin = document.getElementById('spinner');
+  btn.disabled = true; txt.style.display = 'none'; spin.classList.add('show');
+
+  const payload = {
+    gender:             document.getElementById('gender').value,
+    school_type:        document.getElementById('school_type').value,
+    parent_edu:         document.getElementById('parent_edu').value,
+    prior_gpa:          parseFloat(document.getElementById('prior_gpa').value),
+    attendance_pct:     parseFloat(document.getElementById('attendance_pct').value),
+    quiz_avg:           parseFloat(document.getElementById('quiz_avg').value),
+    assign_avg:         parseFloat(document.getElementById('assign_avg').value),
+    midterm:            parseFloat(document.getElementById('midterm').value),
+    study_hours_wk:     parseFloat(document.getElementById('study_hours_wk').value),
+    on_time_submit_pct: parseFloat(document.getElementById('on_time_submit_pct').value),
+    lms_logins_wk:      parseFloat(document.getElementById('lms_logins_wk').value),
+    forum_posts:        parseFloat(document.getElementById('forum_posts').value),
+    commute_min:        parseFloat(document.getElementById('commute_min').value),
+  };
+
+  try {
+    const r   = await fetch(`${API}/predict`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const res = await r.json();
+    renderResult(res, payload);
+    addFeed(res, payload);
+    updateStats(res);
+    updateChart(res.pass_probability);
+  } catch(e) {
+    alert('API error: ' + e.message);
+  } finally {
+    btn.disabled = false; txt.style.display = ''; spin.classList.remove('show');
+  }
+}
+
+function renderResult(res, p) {
+  const card    = document.getElementById('resultCard');
+  const isRisk  = res.is_at_risk;
+  card.className = `result-card show ${isRisk ? 'risk-result' : 'safe-result'}`;
+
+  document.getElementById('vIcon').textContent  = isRisk ? '🚨' : '✅';
+  document.getElementById('vLabel').textContent = isRisk ? 'AT-RISK STUDENT' : 'ON TRACK';
+  document.getElementById('vLabel').className   = `verdict-label ${isRisk ? 'risk' : 'safe'}`;
+  document.getElementById('vSub').textContent   = `Risk Level: ${res.risk_level}  ·  Threshold: ${res.threshold_used}`;
+  document.getElementById('probVal').textContent = res.pass_probability.toFixed(4);
+
+  const fill = document.getElementById('meterFill');
+  fill.style.width = (res.pass_probability * 100).toFixed(1) + '%';
+  fill.className   = `meter-fill ${isRisk ? 'risk' : 'safe'}`;
+
+  document.getElementById('intList').innerHTML =
+    res.interventions.map(i => `<div class="int-item">${i}</div>`).join('');
+
+  document.getElementById('resMeta').innerHTML = [
+    `<span class="meta-pill">${p.school_type}</span>`,
+    `<span class="meta-pill">GPA ${p.prior_gpa}</span>`,
+    `<span class="meta-pill">Att ${p.attendance_pct}%</span>`,
+    `<span class="meta-pill">${p.study_hours_wk}h/wk</span>`,
+  ].join('');
+}
+
+function addFeed(res, p) {
+  const feed   = document.getElementById('feed');
+  const isRisk = res.is_at_risk;
+  const id     = 'STU' + Math.floor(Math.random()*1e6).toString().padStart(6,'0');
+
+  if (feed.firstElementChild?.style.textAlign === 'center') feed.innerHTML = '';
+
+  const row = document.createElement('div');
+  row.className = `student-row ${isRisk ? 'risk' : 'safe'}`;
+  row.innerHTML = `
+    <div class="stu-icon ${isRisk?'risk':'safe'}">${isRisk?'⚠️':'🎓'}</div>
+    <div class="stu-meta">
+      <div class="stu-id">${id}</div>
+      <div class="stu-desc">${p.school_type} · GPA ${p.prior_gpa} · Att ${p.attendance_pct}%</div>
+    </div>
+    <div class="stu-prob ${isRisk?'risk':'safe'}">${(res.pass_probability*100).toFixed(1)}%</div>
+    <div class="badge ${res.risk_level}">${res.risk_level}</div>
+  `;
+  feed.insertBefore(row, feed.firstChild);
+  if (feed.children.length > 30) feed.removeChild(feed.lastChild);
+}
+
+function updateStats(res) {
+  if (res.is_at_risk) sessionRisk++; else sessionSafe++;
+  probs.push(res.pass_probability);
+  document.getElementById('sAtRisk').textContent  = sessionRisk;
+  document.getElementById('sOnTrack').textContent = sessionSafe;
+  const avg = probs.reduce((a,b)=>a+b,0)/probs.length;
+  document.getElementById('sAvgProb').textContent = avg.toFixed(3);
+}
+
+function updateChart(prob) {
+  if (probs.length > 20) probs.shift();
+  const chart = document.getElementById('chart');
+  const labs  = document.getElementById('chartLabs');
+  const max   = Math.max(...probs, 0.1);
+
+  chart.innerHTML = probs.map((p,i) => {
+    const h   = Math.round((p/max)*68)+4;
+    const col = p < 0.4 ? 'var(--red)' : p < 0.65 ? 'var(--amber)' : 'var(--green)';
+    return `<div class="mini-bar" style="height:${h}px;background:${col};opacity:${0.4+0.6*(i/probs.length)}"></div>`;
+  }).join('');
+
+  labs.innerHTML = probs.map(p =>
+    `<div class="bar-lab">${(p*100).toFixed(0)}%</div>`
+  ).join('');
+}
+
+checkApi();
+setInterval(checkApi, 15000);
+</script>
+</body>
+</html>
